@@ -1,0 +1,20 @@
+[package]
+name = "raspberry-pi-5-ws2812b-controller"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies.rppal]
+version = "0.19.0"
+features = ["embedded-hal"]
+
+[dependencies.simple-signal]
+version = "1.1.1"
+
+[dependencies.struct_iterable]
+version = "0.1.1"
+
+[dev-dependencies.pretty_assertions]
+version = "1.4.0"
+
+[dependencies.bitvec]
+version = "1.0.1"

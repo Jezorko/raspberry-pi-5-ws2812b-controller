@@ -7,14 +7,16 @@ use crate::strip::{create_strip, LedController};
 use crate::timings::{get_signal_representation_in_bytes, DEFAULT_WS2812B_TIMING_REQUIREMENTS};
 use bitvec::order::{BitOrder, Lsb0, Msb0};
 use rppal::spi::BitOrder::{LsbFirst, MsbFirst};
-use rppal::spi::{Bus, Mode, Segment, SlaveSelect, Spi};
+use rppal::spi::{Bus, Mode, SlaveSelect, Spi};
 
-use std::error::Error;
-use std::fmt::{Display, Formatter, Write};
-use std::thread;
-use std::time::Duration;
+use embedded_hal::spi::{ErrorKind, ErrorType, SpiBus};
 use rppal::gpio::Gpio;
-use crate::instructions::{SPI_INSTRUCTION_READ_STATUS_REGISTER, SPI_INSTRUCTION_WRITE, SPI_INSTRUCTION_WRITE_IN_PROCESS};
+use smart_leds::{SmartLedsWrite, RGB8};
+use std::error::Error;
+use std::fmt::{Debug, Display, Formatter, Write};
+use std::{thread, time};
+use std::time::Duration;
+use ws2812_spi::Ws2812;
 
 /// 8MHz == 125ns
 const SPI_CLOCK_SPEED: u32 = 8_000_000;
@@ -37,14 +39,79 @@ fn test_pin() -> Result<(), Box<dyn Error>> {
 
     println!("Testing if correct GPIO pin is connected");
     pin.toggle();
-    thread::sleep(Duration::from_millis(2_000));
+    thread::sleep(Duration::from_millis(1_000));
+    pin.toggle();
+    thread::sleep(Duration::from_millis(1_000));
+    pin.toggle();
+    thread::sleep(Duration::from_millis(1_000));
+    pin.toggle();
+    thread::sleep(Duration::from_millis(1_000));
+    pin.toggle();
+    thread::sleep(Duration::from_millis(1_000));
     pin.toggle();
     println!("Testing done!");
 
     Ok(())
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+struct SpiAdapter(Spi);
+
+impl ErrorType for SpiAdapter { type Error = ErrorKind; }
+
+impl SpiBus<u8> for SpiAdapter {
+    fn read(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
+        self.0.read(words).map_err(|error| ErrorKind::Other)?;
+        Ok(())
+    }
+
+    fn write(&mut self, words: &[u8]) -> Result<(), Self::Error> {
+        self.0.write(words).map_err(|error| ErrorKind::Other)?;
+        Ok(())
+    }
+
+    fn transfer(&mut self, read: &mut [u8], write: &[u8]) -> Result<(), Self::Error> {
+        self.0.read(read).map_err(|error| ErrorKind::Other)?;
+        self.0.write(write).map_err(|error| ErrorKind::Other)?;
+        Ok(())
+    }
+
+    fn transfer_in_place(&mut self, words: &mut [u8]) -> Result<(), Self::Error> {
+        self.0.write(words).map_err(|error| ErrorKind::Other)?;
+        self.0.read(words).map_err(|error| ErrorKind::Other)?;
+        Ok(())
+    }
+
+    fn flush(&mut self) -> Result<(), Self::Error> {
+        self.0.flush().map_err(|error| ErrorKind::Other)?;
+        Ok(())
+    }
+}
+
+const LEDS_COUNT: usize = 5;
+
+fn main() -> Result<(), ErrorKind> {
+    let mut spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 1, Mode::Mode0).map_err(|error| ErrorKind::Other)?;
+    let mut strip = Ws2812::new(SpiAdapter(spi));
+
+
+    let mut data: [RGB8; LEDS_COUNT] = [RGB8::default(); LEDS_COUNT];
+    let empty: [RGB8; LEDS_COUNT] = [RGB8::default(); LEDS_COUNT];
+    for led in data.iter_mut() {
+        led.r = 0;
+        led.g = 150;
+        led.b = 255;
+    }
+    strip.write(data).map_err(|error| ErrorKind::Other)?;
+    thread::sleep(Duration::from_millis(10_000));
+
+    strip.write(empty).map_err(|error| ErrorKind::Other)?;
+    thread::sleep(Duration::from_millis(10_000));
+
+
+    Ok(())
+}
+
+fn test_all() -> Result<(), Box<dyn Error>> {
     test_pin()?;
 
     // Configure the SPI peripheral. The 24AA1024 clocks in data on the first

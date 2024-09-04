@@ -1,10 +1,11 @@
-use crate::instructions::{SPI_INSTRUCTION_READ_STATUS_REGISTER, SPI_INSTRUCTION_WRITE, SPI_INSTRUCTION_WRITE_ENABLE, SPI_INSTRUCTION_WRITE_IN_PROCESS};
+use crate::instructions::SPI_INSTRUCTION_WRITE;
 use crate::timings::WS2812BSpecification;
 use bitvec::macros::internal::funty::Fundamental;
 use bitvec::prelude::*;
-use rppal::spi::{Segment, Spi};
+use rppal::spi::Spi;
 use std::error::Error;
-
+use std::thread;
+use std::time::Duration;
 
 pub trait LedController {
     fn len(&self) -> usize;
@@ -59,18 +60,13 @@ impl LedController for WS2812BStrip {
     }
 
     fn set_led(&mut self, position: usize, red: u8, green: u8, blue: u8) {
-        let mut led_data_index_in_buffer = 4 + ((position * self.specification.bytes_of_data_per_color) * self.specification.colors_per_led);
-        // TODO: translate each byte of color to 16 bytes of signal
-        // TODO: set data in buffer
-        // TODO: color ordering could be RGB and not GRB etc.
+        let mut led_data_index_in_buffer = ((position * self.specification.bytes_of_data_per_color) * self.specification.colors_per_led);
         [green, red, blue].iter().for_each(|color_value| {
             self.specification.color_values[color_value.as_usize()].iter().for_each(|data_byte| {
                 self.buffer[led_data_index_in_buffer] = *data_byte;
                 led_data_index_in_buffer += 1;
             });
         });
-
-        // self.buffer[led_data_index_in_buffer] = 0x00000000; // TODO: why was this here???
     }
 
     fn set_all_leds(&mut self, red: u8, green: u8, blue: u8) {
@@ -80,13 +76,6 @@ impl LedController for WS2812BStrip {
     }
 
     fn write_to_spi(&mut self, spi: &mut Spi) -> Result<(), Box<dyn Error>> {
-        println!("enabling writes");
-
-        // Set the write enable latch using the WREN instruction. This is required
-        // before any data can be written. The write enable latch is automatically
-        // reset after a WRITE instruction is successfully executed.
-        spi.write(&[SPI_INSTRUCTION_WRITE_ENABLE])?;
-
         println!("writing buffer to SPI");
         spi.write(&self.buffer[0..self.buffer.len()])?;
         Ok(())
@@ -94,35 +83,11 @@ impl LedController for WS2812BStrip {
 
     fn write_to_spi_blocking(&mut self, spi: &mut Spi) -> Result<(), Box<dyn Error>> {
         self.write_to_spi(spi)?;
-        // Read the STATUS register by writing the RDSR instruction, and then reading
-        // a single byte. Loop until the WIP bit is set to 0, indicating the write
-        // operation is completed. transfer_segments() will keep the Slave Select line
-        // active until both segments have been transferred.
-        println!("reading the STATUS register");
-        let mut buffer = [0u8; 1];
-        loop {
-            spi.transfer_segments(&[
-                Segment::with_write(&[SPI_INSTRUCTION_READ_STATUS_REGISTER]),
-                Segment::with_read(&mut buffer),
-            ])?;
-
-            if buffer[0] & SPI_INSTRUCTION_WRITE_IN_PROCESS == 0 {
-                break;
-            }
-        }
+        thread::sleep(Duration::from_secs(1));
         Ok(())
     }
 
     fn print_buffer(&self) {
-        // for byte_index in 0..self.buffer.len() {
-        //     let value = self.buffer[byte_index];
-        //     println!("{byte_index:03}: {value:08b} {value:02x}");
-        // }
-        // self.buffer.iter().for_each(|byte| {
-        //     print!("{byte:08b} ")
-        // });
-        // println!();
-
         println!("Buffer contents:");
 
         let mut longest_name_length: usize = 0;
@@ -161,14 +126,12 @@ pub fn create_strip<DataBitsOrdering>(leds_count: usize, specification: WS2812BS
 where
     DataBitsOrdering: BitOrder,
 {
-    // 4 bytes for WRITE instruction and address
     // 2 bytes per bit of data
     // 1 byte per color (R, G, B) == 16 bytes of data per color
     // 3 colors per LED = 48 bytes of data per LED
     // 251 bytes for latch = 4016 bytes of data per latch (zeroed out)
-    let mut buffer = vec![0; 4 + (48 * leds_count) + /*4016 TODO: we put only 10 cause of spidev message too long error */ 10];
+    let mut buffer = vec![0; (48 * leds_count) + /*4016 TODO: we put only 10 cause of spidev message too long error */ 10];
     println!("buffer size: {}", buffer.len());
-    buffer[0] = SPI_INSTRUCTION_WRITE;
     let colors_per_led = 3;
     let bytes_of_data_per_color = 16;
     let possible_color_values = 256;
@@ -196,38 +159,28 @@ where
         contents: "".to_string(),
         byte_start_inclusive: 0,
         byte_end_exclusive: 0
-    }; 2 + (leds_count * colors_per_led) + 1];
+    }; (leds_count * colors_per_led) + 1];
 
-    buffer_parts[0] = BufferPart {
-        contents: "WRITE instruction".to_string(),
-        byte_start_inclusive: 0,
-        byte_end_exclusive: 1,
-    };
-    buffer_parts[1] = BufferPart {
-        contents: "Address".to_string(),
-        byte_start_inclusive: 1,
-        byte_end_exclusive: 4,
-    };
     for led_index in 0..leds_count {
-        buffer_parts[2 + (led_index * colors_per_led)] = BufferPart {
+        buffer_parts[led_index * colors_per_led] = BufferPart {
             contents: format!("LED {led_index:03} G").to_string(),
-            byte_start_inclusive: 4 + (led_index * bytes_of_data_per_color * 3),
-            byte_end_exclusive: 4 + (led_index * bytes_of_data_per_color * 3) + bytes_of_data_per_color,
+            byte_start_inclusive: led_index * bytes_of_data_per_color * 3,
+            byte_end_exclusive: (led_index * bytes_of_data_per_color * 3) + bytes_of_data_per_color,
         };
-        buffer_parts[2 + (led_index * colors_per_led) + 1] = BufferPart {
+        buffer_parts[(led_index * colors_per_led) + 1] = BufferPart {
             contents: format!("LED {led_index:03} R").to_string(),
-            byte_start_inclusive: 4 + (led_index * bytes_of_data_per_color * 3) + bytes_of_data_per_color,
-            byte_end_exclusive: 4 + (led_index * bytes_of_data_per_color * 3) + (bytes_of_data_per_color * 2),
+            byte_start_inclusive: (led_index * bytes_of_data_per_color * 3) + bytes_of_data_per_color,
+            byte_end_exclusive: (led_index * bytes_of_data_per_color * 3) + (bytes_of_data_per_color * 2),
         };
-        buffer_parts[2 + (led_index * colors_per_led) + 2] = BufferPart {
+        buffer_parts[(led_index * colors_per_led) + 2] = BufferPart {
             contents: format!("LED {led_index:03} B").to_string(),
-            byte_start_inclusive: 4 + (led_index * bytes_of_data_per_color * 3) + (bytes_of_data_per_color * 2),
-            byte_end_exclusive: 4 + (led_index * bytes_of_data_per_color * 3) + (bytes_of_data_per_color * 3),
+            byte_start_inclusive: (led_index * bytes_of_data_per_color * 3) + (bytes_of_data_per_color * 2),
+            byte_end_exclusive: (led_index * bytes_of_data_per_color * 3) + (bytes_of_data_per_color * 3),
         };
     }
-    buffer_parts[2 + (leds_count * colors_per_led)] = BufferPart {
+    buffer_parts[(leds_count * colors_per_led)] = BufferPart {
         contents: "Latch".to_string(),
-        byte_start_inclusive: buffer_parts[2 + (leds_count * colors_per_led) - 1].byte_end_exclusive,
+        byte_start_inclusive: buffer_parts[(leds_count * colors_per_led) - 1].byte_end_exclusive,
         byte_end_exclusive: buffer.len(),
     };
 

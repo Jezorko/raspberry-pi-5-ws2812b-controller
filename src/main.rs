@@ -2,6 +2,7 @@ mod timings;
 mod test_extensions;
 mod strip;
 mod instructions;
+mod fuckme;
 
 use crate::strip::{create_strip, LedController};
 use crate::timings::{get_signal_representation_in_bytes, DEFAULT_WS2812B_TIMING_REQUIREMENTS};
@@ -17,6 +18,7 @@ use std::fmt::{Debug, Display, Formatter, Write};
 use std::{thread, time};
 use std::time::Duration;
 use ws2812_spi::Ws2812;
+use crate::fuckme::fuck_me;
 
 /// 8MHz == 125ns
 const SPI_CLOCK_SPEED: u32 = 8_000_000;
@@ -90,16 +92,7 @@ impl SpiBus<u8> for SpiAdapter {
 const LEDS_COUNT: usize = 5;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, 8_000_000, Mode::Mode0)?;
-
-    spi.write(&[0, 1, 2, 3, 4, 5])?;
-
-    let mut read_buffer = [0u8; 5];
-    thread::sleep(Duration::from_millis(1_000));
-    spi.read(&mut read_buffer)?;
-    println!("Bytes read: {:?}", read_buffer);
-
-    Ok(())
+    fuck_me()
 }
 
 fn test_all() -> Result<(), Box<dyn Error>> {

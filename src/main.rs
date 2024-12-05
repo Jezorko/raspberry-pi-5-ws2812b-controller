@@ -105,8 +105,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         for color_value in 0..255 {
             strip.set(led_position, color_value, 0, color_value);
             strip.commit()?;
-            thread::sleep(Duration::from_millis(10));
+            thread::sleep(Duration::from_millis(100));
         }
+        strip.set(led_position, 0, 0, 0);
     }
 
     strip.reset();

@@ -1,24 +1,23 @@
 mod strip;
-use strip::{create_ws2812b_strip, LedStripController};
 use jni::objects::JClass;
 use jni::sys::jint;
 use jni::JNIEnv;
 use std::sync::{Mutex, OnceLock};
-/*
-// TODO: oh my GOD RUST SUCKS WITH GLOBALS (compile to see why)
-fn strip(leds_count: usize) -> &'static Mutex<dyn LedStripController> {
-    static STRIP: OnceLock<Mutex<dyn LedStripController>> = OnceLock::new();
-    STRIP.get_or_init(|| Mutex::new(create_ws2812b_strip(leds_count)))
+use strip::create_ws2812b_strip;
+use strip::LedStripController;
+use strip::SpiLedStripController;
+
+fn strip(leds_count: usize) -> &'static Mutex<SpiLedStripController> {
+    static STRIP: OnceLock<Mutex<SpiLedStripController>> = OnceLock::new();
+    STRIP.get_or_init(|| Mutex::new(create_ws2812b_strip(leds_count).unwrap()))
 }
-*/
 #[no_mangle]
 pub extern "system" fn Java_jezor_jni_RPi5RP1SPI_initializeStrip<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
     leds_count: jint,
 ) {
-    println!("initialize called");
-    //strip(leds_count as usize);
+    strip(leds_count as usize);
 }
 
 #[no_mangle]
@@ -30,12 +29,10 @@ pub extern "system" fn Java_jezor_jni_RPi5RP1SPI_setLed<'local>(
     green: jint,
     blue: jint,
 ) {
-    println!("set led called");
-    // strip(0)
-    //     .get()
-    //     .lock()
-    //     .unwrap()
-    //     .set(led_index as usize, red as u8, green as u8, blue as u8);
+    strip(0)
+        .lock()
+        .unwrap()
+        .set(led_index as usize, red as u8, green as u8, blue as u8);
 }
 
 #[no_mangle]
@@ -43,12 +40,7 @@ pub extern "system" fn Java_jezor_jni_RPi5RP1SPI_renderStrip<'local>(
     mut env: JNIEnv<'local>,
     class: JClass<'local>,
 ) {
-    println!("render called");
-    // strip(0)
-    //     .get()
-    //     .lock()
-    //     .unwrap()
-    //     .commit()
+    strip(0).lock().unwrap().commit().unwrap();
 }
 
 #[no_mangle]

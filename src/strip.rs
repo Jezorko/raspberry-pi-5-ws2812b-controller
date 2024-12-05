@@ -17,7 +17,7 @@ pub trait LedStripController {
     fn commit(&mut self) -> Result<(), Box<dyn Error>>;
 }
 
-struct SpiLedStripController {
+pub struct SpiLedStripController {
     leds_count: usize,
     /// Raw data to be sent to SPI.
     buffer: Vec<u8>,
@@ -27,7 +27,7 @@ struct SpiLedStripController {
 
 impl LedStripController for SpiLedStripController {
     fn len(&self) -> usize {
-        self.buffer.len() / (8 * 3/* 8 bits per color, 3 colors */)
+        self.leds_count
     }
 
     fn reset(&mut self) {
@@ -44,7 +44,7 @@ impl LedStripController for SpiLedStripController {
         // TODO: extract this loop
         // set green
         for i in 0..8 {
-            if (bitmask(green, i)) {
+            if bitmask(green, i) {
                 self.buffer[current_byte_position] = 0xF8;
             } else {
                 self.buffer[current_byte_position] = 0xC0
@@ -53,7 +53,7 @@ impl LedStripController for SpiLedStripController {
         }
         // set red
         for i in 0..8 {
-            if (bitmask(red, i)) {
+            if bitmask(red, i) {
                 self.buffer[current_byte_position] = 0xF8;
             } else {
                 self.buffer[current_byte_position] = 0xC0
@@ -62,7 +62,7 @@ impl LedStripController for SpiLedStripController {
         }
         // set blue
         for i in 0..8 {
-            if (bitmask(blue, i)) {
+            if bitmask(blue, i) {
                 self.buffer[current_byte_position] = 0xF8;
             } else {
                 self.buffer[current_byte_position] = 0xC0
@@ -84,11 +84,11 @@ impl LedStripController for SpiLedStripController {
     }
 }
 
-pub fn create_ws2812b_strip(leds_count: usize) -> Result<impl LedStripController, Box<dyn Error>> {
-    let mut buffer = vec![0; (8 * 3/* 8 bits per color, 3 colors per LED */) * leds_count];
+pub fn create_ws2812b_strip(leds_count: usize) -> Result<SpiLedStripController, Box<dyn Error>> {
+    let buffer = vec![0; (8 * 3/* 8 bits per color, 3 colors per LED */) * leds_count];
     let spi_speed_khz: u32 = 800;
     let spi_speed_bps: u32 = spi_speed_khz * 1024 * 8; // Convert kHz to bytes per second (TODO: why???)
-    let mut spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, spi_speed_bps, Mode::Mode0)?;
+    let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, spi_speed_bps, Mode::Mode0)?;
     thread::sleep(Duration::from_millis(100)); // Short delay to ensure device is ready (TODO: needed???)
 
     Ok(SpiLedStripController {

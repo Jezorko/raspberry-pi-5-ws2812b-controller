@@ -27,3 +27,6 @@ version = "1.0.0"
 
 [dependencies.smart-leds]
 version = "0.4.0"
+
+[dependencies.spidev]
+version = "0.6.0"

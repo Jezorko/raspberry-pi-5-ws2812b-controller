@@ -104,7 +104,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for color_value in 0..255u8 {
         strip.set_all(0, color_value, 0);
         strip.commit()?;
-        thread::sleep(Duration::from_millis(1000));
+        thread::sleep(Duration::from_millis(100));
     }
 
     strip.reset();

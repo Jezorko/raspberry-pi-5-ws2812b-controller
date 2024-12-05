@@ -3,9 +3,15 @@ name = "raspberry-pi-5-ws2812b-controller"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+crate-type = ["cdylib"]
+
 [dependencies.rppal]
 version = "0.20.0"
 features = ["embedded-hal"]
 
 [dependencies.embedded-hal]
 version = "1.0.0"
+
+[dependencies.jni]
+version = "0.21.1"

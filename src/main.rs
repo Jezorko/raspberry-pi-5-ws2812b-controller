@@ -115,6 +115,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     strip.reset();
     strip.commit()?;
+    thread::sleep(Duration::from_secs(1));
 
     Ok(())
 }

@@ -111,6 +111,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             strip.commit()?;
             thread::sleep(Duration::from_millis(10));
         }
+        strip.set(led_index, 0, 0, 0);
     }
 
     strip.reset();

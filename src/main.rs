@@ -4,6 +4,7 @@ use embedded_hal::spi::SpiBus;
 use std::error::Error;
 use std::thread;
 use std::time::Duration;
+use crate::strip::LedStripController;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut strip = strip::create_ws2812b_strip(12)?;

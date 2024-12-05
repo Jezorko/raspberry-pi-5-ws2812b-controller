@@ -4,29 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies.rppal]
-version = "0.19.0"
+version = "0.20.0"
 features = ["embedded-hal"]
-
-[dependencies.simple-signal]
-version = "1.1.1"
-
-[dependencies.struct_iterable]
-version = "0.1.1"
-
-[dev-dependencies.pretty_assertions]
-version = "1.4.0"
-
-[dependencies.bitvec]
-version = "1.0.1"
-
-[dependencies.ws2812-spi]
-version = "0.5.0"
 
 [dependencies.embedded-hal]
 version = "1.0.0"
-
-[dependencies.smart-leds]
-version = "0.4.0"
-
-[dependencies.spidev]
-version = "0.6.0"

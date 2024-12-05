@@ -103,15 +103,15 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     strip.set_all(0, 255, 0);
     strip.commit()?;
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(10));
 
     strip.set_all(255, 0, 0);
     strip.commit()?;
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(10));
 
     strip.set_all(0, 255, 255);
     strip.commit()?;
-    thread::sleep(Duration::from_millis(100));
+    thread::sleep(Duration::from_millis(10));
 
     strip.reset();
     strip.commit()?;

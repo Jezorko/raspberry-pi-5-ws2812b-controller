@@ -101,6 +101,10 @@ fn create_ws2812b_strip(leds_count: usize) -> Result<impl LedStripController, Bo
 fn main() -> Result<(), Box<dyn Error>> {
     let mut strip = create_ws2812b_strip(12)?;
 
+    strip.reset();
+    strip.commit()?;
+    thread::sleep(Duration::from_millis(100));
+
     for led_index in 0..strip.len() {
         for color_value in 0..255 {
             strip.set(led_index, 0, color_value, 0);

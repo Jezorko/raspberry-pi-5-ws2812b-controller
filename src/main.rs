@@ -5,7 +5,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let mut strip = strip::create_ws2812b_strip(12)?;
+    let mut strip = strip::create_ws2812b_strip(12, 24)?;
 
     strip.reset();
     strip.commit()?;

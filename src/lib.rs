@@ -9,7 +9,7 @@ use strip::SpiLedStripController;
 
 fn strip(leds_count: usize) -> &'static Mutex<SpiLedStripController> {
     static STRIP: OnceLock<Mutex<SpiLedStripController>> = OnceLock::new();
-    STRIP.get_or_init(|| Mutex::new(create_ws2812b_strip(leds_count).unwrap()))
+    STRIP.get_or_init(|| Mutex::new(create_ws2812b_strip(leds_count, 24).unwrap()))
 }
 #[no_mangle]
 pub extern "system" fn Java_jezor_jni_RPi5RP1SPI_initializeStrip<'local>(

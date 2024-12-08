@@ -19,8 +19,6 @@ pub trait LedStripController {
 
 pub struct SpiLedStripController {
     leds_count: usize,
-    /// Each bit will be spread this many times to accommodate larger color spaces.
-    bit_spread: usize,
     /// Raw data to be sent to SPI.
     buffer: Vec<u8>,
     /// SPI device to which the strip is connected.
@@ -41,44 +39,35 @@ impl LedStripController for SpiLedStripController {
             value & (1 << (7 - position)) != 0
         }
 
-        let mut current_byte_position = position * self.bit_spread * (8 * 3/* 8 bits per color, 3 colors */);
+        let mut current_byte_position = position * (8 * 3/* 8 bits per color, 3 colors */);
 
         // TODO: extract this loop
         // set green
         for i in 0..8 {
-            let current_bit = bitmask(green, i);
-            for spread in 0..self.bit_spread {
-                if current_bit {
-                    self.buffer[current_byte_position] = 0xF8;
-                } else {
-                    self.buffer[current_byte_position] = 0xC0
-                };
-                current_byte_position = current_byte_position + 1;
-            }
+            if bitmask(green, i) {
+                self.buffer[current_byte_position] = 0xF8;
+            } else {
+                self.buffer[current_byte_position] = 0xC0
+            };
+            current_byte_position = current_byte_position + 1;
         }
         // set red
         for i in 0..8 {
-            let current_bit = bitmask(red, i);
-            for spread in 0..self.bit_spread {
-                if current_bit {
-                    self.buffer[current_byte_position] = 0xF8;
-                } else {
-                    self.buffer[current_byte_position] = 0xC0
-                };
-                current_byte_position = current_byte_position + 1;
-            }
+            if bitmask(red, i) {
+                self.buffer[current_byte_position] = 0xF8;
+            } else {
+                self.buffer[current_byte_position] = 0xC0
+            };
+            current_byte_position = current_byte_position + 1;
         }
         // set blue
         for i in 0..8 {
-            let current_bit = bitmask(blue, i);
-            for spread in 0..self.bit_spread {
-                if current_bit {
-                    self.buffer[current_byte_position] = 0xF8;
-                } else {
-                    self.buffer[current_byte_position] = 0xC0
-                };
-                current_byte_position = current_byte_position + 1;
-            }
+            if bitmask(blue, i) {
+                self.buffer[current_byte_position] = 0xF8;
+            } else {
+                self.buffer[current_byte_position] = 0xC0
+            };
+            current_byte_position = current_byte_position + 1;
         }
     }
 
@@ -95,20 +84,8 @@ impl LedStripController for SpiLedStripController {
     }
 }
 
-pub fn create_ws2812b_strip(
-    leds_count: usize,
-    color_depth_bits: usize,
-) -> Result<SpiLedStripController, Box<dyn Error>> {
-    let bit_spread;
-    if (color_depth_bits == 12) {
-        bit_spread = 1;
-    } else if (color_depth_bits == 24) {
-        bit_spread = 3;
-    } else {
-        bit_spread = 1;
-    }
-
-    let buffer = vec![0; bit_spread * (8 * 3/* 8 bits per color, 3 colors per LED */) * leds_count];
+pub fn create_ws2812b_strip(leds_count: usize) -> Result<SpiLedStripController, Box<dyn Error>> {
+    let buffer = vec![0; (8 * 3/* 8 bits per color, 3 colors per LED */) * leds_count];
     let spi_speed_khz: u32 = 800;
     let spi_speed_bps: u32 = spi_speed_khz * 1024 * 8; // Convert kHz to bytes per second (TODO: why???)
     let spi = Spi::new(Bus::Spi0, SlaveSelect::Ss0, spi_speed_bps, Mode::Mode0)?;
@@ -116,7 +93,6 @@ pub fn create_ws2812b_strip(
 
     Ok(SpiLedStripController {
         leds_count,
-        bit_spread,
         buffer,
         spi,
     })
